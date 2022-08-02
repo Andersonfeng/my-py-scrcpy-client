@@ -12,7 +12,7 @@ from adbutils import AdbConnection, AdbDevice, AdbError, Network, adb
 from av.codec import CodecContext
 from av.error import InvalidDataError
 
-from .const import EVENT_FRAME, EVENT_INIT, LOCK_SCREEN_ORIENTATION_UNLOCKED
+from .const import EVENT_FRAME, EVENT_INIT, LOCK_SCREEN_ORIENTATION_UNLOCKED,EVENT_FRAME_2
 from .control import ControlSender
 
 
@@ -140,27 +140,51 @@ class Client:
             os.path.abspath(os.path.dirname(__file__)), jar_name
         )
         self.device.sync.push(server_file_path, f"/data/local/tmp/{jar_name}")
+        # commands = [
+        #     f"CLASSPATH=/data/local/tmp/{jar_name}",
+        #     "app_process",
+        #     "/",
+        #     "com.genymobile.scrcpy.Server",
+        #     "1.20",  # Scrcpy server version
+        #     "info",  # Log level: info, verbose...
+        #     f"{self.max_width}",  # Max screen width (long side)
+        #     f"{self.bitrate}",  # Bitrate of video
+        #     f"{self.max_fps}",  # Max frame per second
+        #     f"{self.lock_screen_orientation}",  # Lock screen orientation: LOCK_SCREEN_ORIENTATION
+        #     "true",  # Tunnel forward
+        #     "-",  # Crop screen
+        #     "false",  # Send frame rate to client
+        #     "true",  # Control enabled
+        #     "0",  # Display id
+        #     "false",  # Show touches
+        #     "true" if self.stay_awake else "false",  # Stay awake
+        #     "-",  # Codec (video encoding) options
+        #     self.encoder_name or "-",  # Encoder name
+        #     "false",  # Power off screen after server closed
+        # ]
         commands = [
             f"CLASSPATH=/data/local/tmp/{jar_name}",
             "app_process",
             "/",
             "com.genymobile.scrcpy.Server",
-            "1.20",  # Scrcpy server version
-            "info",  # Log level: info, verbose...
-            f"{self.max_width}",  # Max screen width (long side)
-            f"{self.bitrate}",  # Bitrate of video
-            f"{self.max_fps}",  # Max frame per second
-            f"{self.lock_screen_orientation}",  # Lock screen orientation: LOCK_SCREEN_ORIENTATION
-            "true",  # Tunnel forward
-            "-",  # Crop screen
-            "false",  # Send frame rate to client
-            "true",  # Control enabled
-            "0",  # Display id
-            "false",  # Show touches
-            "true" if self.stay_awake else "false",  # Stay awake
-            "-",  # Codec (video encoding) options
-            self.encoder_name or "-",  # Encoder name
-            "false",  # Power off screen after server closed
+            "1.24",  # Scrcpy server version
+            "log_level=debug",  # Log level: info, verbose...
+            'tunnel_forward=true',
+            'control=true',
+            # f"{self.max_width}",  # Max screen width (long side)
+            # f"{self.bitrate}",  # Bitrate of video
+            # f"{self.max_fps}",  # Max frame per second
+            # f"{self.lock_screen_orientation}",  # Lock screen orientation: LOCK_SCREEN_ORIENTATION
+            # "true",  # Tunnel forward
+            # "-",  # Crop screen
+            # "false",  # Send frame rate to client
+            # "true",  # Control enabled
+            # "0",  # Display id
+            # "false",  # Show touches
+            # "true" if self.stay_awake else "false",  # Stay awake
+            # "-",  # Codec (video encoding) options
+            # self.encoder_name or "-",  # Encoder name
+            # "false",  # Power off screen after server closed
         ]
 
         self.__server_stream: AdbConnection = self.device.shell(
