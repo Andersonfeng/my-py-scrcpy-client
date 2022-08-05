@@ -51,7 +51,7 @@ class MainWindow(QMainWindow):
             # bitrate=1000000000,
             bitrate=8000000,
             encoder_name=encoder_name,
-            max_fps=10,
+            # max_fps=10,
         )
         self.client.add_listener(scrcpy.EVENT_INIT, self.on_init)
         self.client.add_listener(scrcpy.EVENT_FRAME, self.on_frame)
@@ -170,22 +170,20 @@ class MainWindow(QMainWindow):
     def on_frame(self, frame):
         app.processEvents()
         if frame is not None:
-            # logger.info('queue size:%s',self.frame_queue.qsize())
-            # if(self.frame_queue.qsize()>10):
             #     self.frame_queue.queue.clear()
             self.frame_queue.put(frame,block=False)
-            ratio = self.max_width / max(self.client.resolution)
-            image = QImage(
-                frame,
-                frame.shape[1],
-                frame.shape[0],
-                frame.shape[1] * 3,
-                QImage.Format_BGR888,
-            )
-            pix = QPixmap(image)
-            pix.setDevicePixelRatio(1 / ratio)
-            self.ui.label.setPixmap(pix)
-            self.resize(1, 1)
+            # ratio = self.max_width / max(self.client.resolution)
+            # image = QImage(
+            #     frame,
+            #     frame.shape[1],
+            #     frame.shape[0],
+            #     frame.shape[1] * 3,
+            #     QImage.Format_BGR888,
+            # )
+            # pix = QPixmap(image)
+            # pix.setDevicePixelRatio(1 / ratio)
+            # self.ui.label.setPixmap(pix)
+            # self.resize(1, 1)
 
     def closeEvent(self, _):
         self.client.stop()
@@ -206,6 +204,7 @@ class AutoBattle():
         self.threshold = 0.8
         self.current_frame = None
         self.main_window = main_window
+        self.meet_enemy = False
 
     
     def match_latest_frame(self,frame,file_ab_path):
@@ -225,9 +224,9 @@ class AutoBattle():
             # frame = cv2.imread("D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\screenshot\\screenshot_3.png")     
             result = cv2.matchTemplate(target, frame,cv2.TM_CCOEFF_NORMED)
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
-            logger.info('match %s result:%s',file_ab_path,max_val > self.threshold)
+            # logger.info('match %s result:%s',file_ab_path,max_val > self.threshold)
             stop_time = time()
-            logger.info('time consume:%s',"{:.2}".format(stop_time-start_time))
+            # logger.info('time consume:%s',"{:.2}".format(stop_time-start_time))
             return max_val > self.threshold, (max_loc[0]+twidth/2, max_loc[1]+theight/2)
             # return False, None
         except Exception as e:
@@ -238,7 +237,6 @@ class AutoBattle():
         """
         select the 墨家机关道 and solo ai
         """
-        print("开始选择墨家机关道")
         # self.in_battle = False
         
         screenshot_list = ['battle', 'solo', 'ai_mode', 'mojiajiguandao', 'hero_list',
@@ -250,10 +248,11 @@ class AutoBattle():
                     file_ab_path = ""+self.parent_path+filename+'.png'
                     match, location = self.match_latest_frame(self.current_frame,file_ab_path)
                     if(match):
-                        self.client.control.touch(location[0] , location[1], scrcpy.ACTION_DOWN)
-                        self.client.control.touch(location[0] , location[1], scrcpy.ACTION_UP)
+                        self.client.control.touch(location[0] , location[1], scrcpy.ACTION_DOWN,2)
+                        self.client.control.touch(location[0] , location[1], scrcpy.ACTION_UP,2)
                         sleep(1)
                 sleep(1)
+                logger.info("结束选择墨家机关道")
             sleep(1)
 
     def detect_battle(self):
@@ -283,9 +282,9 @@ class AutoBattle():
 
     def keep_move(self):
         while True:
-            if(self.in_battle):
-                self.swipe(400,1300,700,600)
-                # print('假装这是在滑动')
+            if(self.in_battle and not self.meet_enemy):
+                self.swipe(400,1300,600,600)        
+                sleep(0.1)
             else:
                 sleep(1)
 
@@ -294,16 +293,97 @@ class AutoBattle():
             self.current_frame=self.frame_queue.get()
             # logger.info('queue size:%s',self.frame_queue.qsize())
 
-    def only_waiting(self):
+    def detect_skill_upgrade(self):
         while True:
-            logger.info('another sleep')
+            if(self.in_battle):
+                upgrade_skill = ""+self.parent_path+'upgrade_skill.png'
+                match, location = self.match_latest_frame(self.current_frame,upgrade_skill)                
+                if(match):
+                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_DOWN)
+                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_UP)
+
+                
+                upgrade_skill_2 = ""+self.parent_path+'upgrade_skill_2.png'
+                match, location = self.match_latest_frame(self.current_frame,upgrade_skill_2)
+                if(match):
+                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_DOWN)
+                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_UP)                
+            sleep(2)
+
+    def detect_enemy(self):
+        """
+        根据地方英雄血条检测敌人
+        检测到敌人同时按下123技能以及攻击
+        """
+        skill_1 = [1800, 1400,10]
+        skill_2 = [2000, 1100,20]
+        skill_3 = [2200, 1000,30]
+        attack = [2200, 1400,40]
+        while True:
+            if(self.in_battle):            
+                enemy_healthbar = ""+self.parent_path+'enemy_healthbar.png'
+                match, location = self.match_latest_frame(self.current_frame,enemy_healthbar)
+                if(match):                
+                    self.meet_enemy = True
+                    logger.info('detect enemy!!! attack')
+                    for i in range(5):
+                        try:
+                            self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_DOWN,skill_1[2])
+                            self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_UP,skill_1[2])
+                            sleep(0.1)
+
+                            self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_DOWN,skill_2[2])
+                            self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_UP,skill_2[2])
+                            sleep(0.1)
+
+                            self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_DOWN,skill_3[2])
+                            self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_UP,skill_3[2])
+                            sleep(0.1)
+
+                            self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_DOWN,attack[2])
+                            self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_UP,attack[2])
+                        except Exception as e:
+                            logger.error(e)
+                            continue
+                else:
+                    self.meet_enemy = False
+                sleep(0.5)
+                
+            sleep(2)
+
+    def attack_test(self):
+        skill_1 = [1800, 1400,-3]
+        skill_2 = [2000, 1100,-4]
+        skill_3 = [2200, 1000,-5]
+        attack = [2200, 1400,-6]
+        while True:
+            logger.info('again')
+            try:
+                self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_DOWN,skill_1[2])
+                self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_UP,skill_1[2])
+                sleep(0.1)
+                self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_DOWN,skill_2[2])
+                self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_UP,skill_2[2])
+
+                sleep(0.1)
+                self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_DOWN,skill_3[2])
+                self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_UP,skill_3[2])
+
+                sleep(0.1)
+                self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_DOWN,attack[2])            
+                self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_UP,attack[2])
+            except Exception as e:
+                logger.error(e)
             sleep(1)
 
     def run_auto_earn_script(self):
         Thread(target=self.select_MOJIA_agency, args=()).start()
         Thread(target=self.detect_battle, args=()).start()
         Thread(target=self.keep_move, args=()).start()
+        Thread(target=self.detect_skill_upgrade, args=()).start()
+        Thread(target=self.detect_enemy, args=()).start()
         Thread(target=self.consume_queue, args=()).start()
+        # Thread(target=self.attack_test, args=()).start()
         
         return
 
@@ -327,7 +407,7 @@ def main():
     args = parser.parse_args()
 
     m = MainWindow(args.max_width, args.device, args.encoder_name,queue.LifoQueue())    
-    m.show()
+    # m.show()
 
     battle = AutoBattle(
         parent_path='D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\',        
