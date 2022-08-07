@@ -94,6 +94,16 @@ class Ui_MainWindow(object):
 
         self.horizontalLayout.addWidget(self.button_stop)
 
+        self.button_turn_off_screen = QPushButton(self.centralwidget)
+        self.button_turn_off_screen.setObjectName("button_turn_off_screen")
+
+        self.horizontalLayout.addWidget(self.button_turn_off_screen)
+
+        self.button_take_screenshot = QPushButton(self.centralwidget)
+        self.button_take_screenshot.setObjectName("button_take_screenshot")
+
+        self.horizontalLayout.addWidget(self.button_take_screenshot)
+
         self.horizontalSpacer_2 = QSpacerItem(
             40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum
         )
@@ -130,5 +140,7 @@ class Ui_MainWindow(object):
         self.button_home.setText(QCoreApplication.translate("MainWindow", "HOME", None))
         self.button_back.setText(QCoreApplication.translate("MainWindow", "BACK", None))
         self.button_stop.setText(QCoreApplication.translate("MainWindow", "STOP", None))
+        self.button_turn_off_screen.setText(QCoreApplication.translate("MainWindow", "SCREEN", None))
+        self.button_take_screenshot.setText(QCoreApplication.translate("MainWindow", "SCREENSHOT", None))
 
     # retranslateUi

@@ -8,7 +8,8 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 import scrcpy
 import cv2
 from threading import Thread
-from time import sleep,time
+import time
+from time import sleep
 from ui_main import Ui_MainWindow
 import queue
 import logging
@@ -36,6 +37,8 @@ class MainWindow(QMainWindow):
         self.frame_queue = frame_queue
         self.stop = False
         self.mouse_touch_id=-2
+        self.screen_status = True
+        self.take_screenshot_request=False
 
         # Setup devices
         self.devices = self.list_devices()
@@ -60,6 +63,8 @@ class MainWindow(QMainWindow):
         self.ui.button_home.clicked.connect(self.on_click_home)
         self.ui.button_back.clicked.connect(self.on_click_back)
         self.ui.button_stop.clicked.connect(self.on_click_stop)
+        self.ui.button_turn_off_screen.clicked.connect(self.button_turn_off_screen)
+        self.ui.button_take_screenshot.clicked.connect(self.on_click_take_screenshot)
 
         # Bind config
         self.ui.combo_device.currentTextChanged.connect(self.choose_device)
@@ -107,6 +112,22 @@ class MainWindow(QMainWindow):
     
     def get_stop(self):
         return self.stop
+
+    def on_click_take_screenshot(self):
+        self.take_screenshot_request=True        
+
+    def button_turn_off_screen(self):
+        """
+        toggel screen off/on
+        """
+        if(self.screen_status):
+            mode = scrcpy.POWER_MODE_OFF            
+        else:
+            mode = scrcpy.POWER_MODE_NORMAL
+
+        self.screen_status = not self.screen_status
+        self.client.control.set_screen_power_mode(mode)
+
 
     def on_click_stop(self):
         logger.info('stop click')
@@ -172,18 +193,25 @@ class MainWindow(QMainWindow):
         if frame is not None:
             #     self.frame_queue.queue.clear()
             self.frame_queue.put(frame,block=False)
-            # ratio = self.max_width / max(self.client.resolution)
-            # image = QImage(
-            #     frame,
-            #     frame.shape[1],
-            #     frame.shape[0],
-            #     frame.shape[1] * 3,
-            #     QImage.Format_BGR888,
-            # )
-            # pix = QPixmap(image)
-            # pix.setDevicePixelRatio(1 / ratio)
-            # self.ui.label.setPixmap(pix)
-            # self.resize(1, 1)
+            if(self.take_screenshot_request):                
+                time_string=time.strftime("%Y%m%d_%H%M%S",time.gmtime())
+                file_name = 'D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\screenshot\\'+time_string+'.png'
+                logger.info('screenshot name:%s',file_name)
+                cv2.imwrite(file_name,frame)
+                self.take_screenshot_request=False
+
+            ratio = self.max_width / max(self.client.resolution)
+            image = QImage(
+                frame,
+                frame.shape[1],
+                frame.shape[0],
+                frame.shape[1] * 3,
+                QImage.Format_BGR888,
+            )
+            pix = QPixmap(image)
+            pix.setDevicePixelRatio(1 / ratio)
+            self.ui.label.setPixmap(pix)
+            self.resize(1, 1)
 
     def closeEvent(self, _):
         self.client.stop()
@@ -206,7 +234,20 @@ class AutoBattle():
         self.main_window = main_window
         self.meet_enemy = False
 
-    
+    def tap(self,x,y,touch_id=-2):
+        """
+        tap the x,y
+        args
+        x:x
+        y:y
+        touch_id: Default using virtual id -1, you can specify it to emulate multi finger touch
+        """
+
+        self.client.control.touch(x,y,scrcpy.ACTION_DOWN,touch_id)
+        sleep(0.1)
+        self.client.control.touch(x,y,scrcpy.ACTION_UP,touch_id)
+        logger.info('tap x:%s y:%s touch_id:%s',x,y,touch_id)
+
     def match_latest_frame(self,frame,file_ab_path):
         """
         match the template image with current frame, if match , return the match location
@@ -216,8 +257,9 @@ class AutoBattle():
         file_ab_path: the template file path need to match
         """
         if(self.main_window.get_stop()):
+            logger.info('stop match')
             return False,None
-        start_time = time()
+        # start_time = time()
         try:
             target = cv2.imread(file_ab_path)
             theight, twidth = target.shape[:2]
@@ -225,7 +267,7 @@ class AutoBattle():
             result = cv2.matchTemplate(target, frame,cv2.TM_CCOEFF_NORMED)
             min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(result)
             # logger.info('match %s result:%s',file_ab_path,max_val > self.threshold)
-            stop_time = time()
+            # stop_time = time()
             # logger.info('time consume:%s',"{:.2}".format(stop_time-start_time))
             return max_val > self.threshold, (max_loc[0]+twidth/2, max_loc[1]+theight/2)
             # return False, None
@@ -248,8 +290,7 @@ class AutoBattle():
                     file_ab_path = ""+self.parent_path+filename+'.png'
                     match, location = self.match_latest_frame(self.current_frame,file_ab_path)
                     if(match):
-                        self.client.control.touch(location[0] , location[1], scrcpy.ACTION_DOWN,2)
-                        self.client.control.touch(location[0] , location[1], scrcpy.ACTION_UP,2)
+                        self.tap(location[0] , location[1])
                         sleep(1)
                 sleep(1)
                 logger.info("结束选择墨家机关道")
@@ -273,7 +314,7 @@ class AutoBattle():
                 if(self.in_battle != True):
                     print("not in battle now")
 
-                sleep(1)
+                sleep(5)
 
             # sleep(5)
     def swipe(self,x1,y1,x2,y2):
@@ -299,15 +340,12 @@ class AutoBattle():
                 upgrade_skill = ""+self.parent_path+'upgrade_skill.png'
                 match, location = self.match_latest_frame(self.current_frame,upgrade_skill)                
                 if(match):
-                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_DOWN)
-                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_UP)
-
+                    self.tap(location[0] , location[1])
                 
                 upgrade_skill_2 = ""+self.parent_path+'upgrade_skill_2.png'
                 match, location = self.match_latest_frame(self.current_frame,upgrade_skill_2)
                 if(match):
-                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_DOWN)
-                    self.client.control.touch(location[0] , location[1], scrcpy.ACTION_UP)                
+                    self.tap(location[0] , location[1])                                  
             sleep(2)
 
     def detect_enemy(self):
@@ -318,63 +356,31 @@ class AutoBattle():
         skill_1 = [1800, 1400,10]
         skill_2 = [2000, 1100,20]
         skill_3 = [2200, 1000,30]
+        equip_1 = [250,650,5]
         attack = [2200, 1400,40]
         while True:
             if(self.in_battle):            
                 enemy_healthbar = ""+self.parent_path+'enemy_healthbar.png'
                 match, location = self.match_latest_frame(self.current_frame,enemy_healthbar)
-                if(match):                
-                    self.meet_enemy = True
+                if(match):
                     logger.info('detect enemy!!! attack')
-                    for i in range(5):
-                        try:
-                            self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_DOWN,skill_1[2])
-                            self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_UP,skill_1[2])
-                            sleep(0.1)
+                    self.meet_enemy = True
+                    try:
+                        self.tap(equip_1[0] , equip_1[1],equip_1[2])                        
 
-                            self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_DOWN,skill_2[2])
-                            self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_UP,skill_2[2])
-                            sleep(0.1)
-
-                            self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_DOWN,skill_3[2])
-                            self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_UP,skill_3[2])
-                            sleep(0.1)
-
-                            self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_DOWN,attack[2])
-                            self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_UP,attack[2])
-                        except Exception as e:
-                            logger.error(e)
-                            continue
+                        for i in range(5):
+                                self.tap(skill_1[0] , skill_1[1],skill_1[2])
+                                self.tap(skill_2[0] , skill_2[1],skill_2[2])
+                                self.tap(skill_3[0] , skill_3[1],skill_3[2])
+                                self.tap(attack[0] , attack[1],attack[2])                                
+                    except Exception as e:
+                        logger.error(e)
+                        continue
                 else:
                     self.meet_enemy = False
                 sleep(0.5)
                 
             sleep(2)
-
-    def attack_test(self):
-        skill_1 = [1800, 1400,-3]
-        skill_2 = [2000, 1100,-4]
-        skill_3 = [2200, 1000,-5]
-        attack = [2200, 1400,-6]
-        while True:
-            logger.info('again')
-            try:
-                self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_DOWN,skill_1[2])
-                self.client.control.touch(skill_1[0] , skill_1[1], scrcpy.ACTION_UP,skill_1[2])
-                sleep(0.1)
-                self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_DOWN,skill_2[2])
-                self.client.control.touch(skill_2[0] , skill_2[1], scrcpy.ACTION_UP,skill_2[2])
-
-                sleep(0.1)
-                self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_DOWN,skill_3[2])
-                self.client.control.touch(skill_3[0] , skill_3[1], scrcpy.ACTION_UP,skill_3[2])
-
-                sleep(0.1)
-                self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_DOWN,attack[2])            
-                self.client.control.touch(attack[0] , attack[1], scrcpy.ACTION_UP,attack[2])
-            except Exception as e:
-                logger.error(e)
-            sleep(1)
 
     def run_auto_earn_script(self):
         Thread(target=self.select_MOJIA_agency, args=()).start()
@@ -383,7 +389,6 @@ class AutoBattle():
         Thread(target=self.detect_skill_upgrade, args=()).start()
         Thread(target=self.detect_enemy, args=()).start()
         Thread(target=self.consume_queue, args=()).start()
-        # Thread(target=self.attack_test, args=()).start()
         
         return
 
@@ -407,7 +412,7 @@ def main():
     args = parser.parse_args()
 
     m = MainWindow(args.max_width, args.device, args.encoder_name,queue.LifoQueue())    
-    # m.show()
+    m.show()
 
     battle = AutoBattle(
         parent_path='D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\',        
