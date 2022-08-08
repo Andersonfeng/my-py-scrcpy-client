@@ -278,11 +278,12 @@ class AutoBattle():
     def select_MOJIA_agency(self):
         """
         select the 墨家机关道 and solo ai
+        select the 墨家机关道 and match , auto surrender after 2mins
         """
         # self.in_battle = False
         
-        screenshot_list = ['battle', 'solo', 'ai_mode', 'mojiajiguandao', 'hero_list',
-                        'mage', 'hero_zhugeliang', 'confirm',  'continue', 'return_to_hall', 'giveup', 'confirm_2', 'return_to_hall_fromtaozhuang']
+        # screenshot_list = ['battle', 'solo', 'ai_mode', 'mojiajiguandao', 'hero_list','mage', 'hero_zhugeliang', 'confirm',  'continue', 'return_to_hall', 'giveup', 'confirm_2', 'return_to_hall_fromtaozhuang']
+        screenshot_list = ['battle', 'solo', 'matching', 'mojiajiguandao', 'hero_list','mage', 'hero_zhugeliang', 'confirm',  'confirm_match', 'continue', 'again','return_to_hall', 'giveup', 'confirm_2', 'return_to_hall_fromtaozhuang']
 
         while True:
             if(self.in_battle == False and self.current_frame is not None):
@@ -302,6 +303,8 @@ class AutoBattle():
         """
         print('Start detect battle mode')
         
+        battle_start_time = time.time()
+        battle_start = False
 
         while True:
             if(self.current_frame is not None):
@@ -311,12 +314,35 @@ class AutoBattle():
                 is_tp_dead, location = self.match_latest_frame(self.current_frame, tp_dead)                
                 self.in_battle = is_tp | is_tp_dead
 
-                if(self.in_battle != True):
+                if(not self.in_battle):
                     print("not in battle now")
+                    battle_start=False
+
+                if(not battle_start and self.in_battle):
+                    battle_start = True
+                    battle_start_time = time.time()
+
+                if(self.in_battle and time.time() - battle_start_time>120): #2分钟就投降
+                    self.surrender()
 
                 sleep(5)
 
             # sleep(5)
+
+    def surrender(self):
+        setting = ""+self.parent_path+'setting.png'
+        surrender = ""+self.parent_path+'surrender.png'
+        match,location = self.match_latest_frame(self.current_frame, setting)
+        if(match):
+            self.tap(location[0] , location[1])
+            sleep(1)
+            
+        match,location = self.match_latest_frame(self.current_frame, surrender)
+        if(match):
+            self.tap(location[0] , location[1])
+        
+         
+
     def swipe(self,x1,y1,x2,y2):
         self.client.control.swipe(start_x=x1,start_y=y1,end_x=x2,end_y=y2)        
         return

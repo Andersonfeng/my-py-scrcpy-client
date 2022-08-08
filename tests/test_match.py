@@ -1,6 +1,7 @@
 import logging
 import sys
 import cv2
+import time
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -29,6 +30,11 @@ def match_latest_frame(frame,file_ab_path):
         return False, None
 
 
-frame = cv2.imread("D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\screenshot\\20220807_044505.png")
-file_ab_path="D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\enemy_healthbar_2.png"
-match_latest_frame(frame,file_ab_path)
+# frame = cv2.imread("D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\screenshot\\20220807_044505.png")
+# file_ab_path="D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\enemy_healthbar_2.png"
+# match_latest_frame(frame,file_ab_path)
+start_time = time.time()
+time.sleep(3)
+end_time = time.time()
+
+logger.info(end_time-start_time)
