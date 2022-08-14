@@ -195,7 +195,8 @@ class MainWindow(QMainWindow):
             self.frame_queue.put(frame,block=False)
             if(self.take_screenshot_request):                
                 time_string=time.strftime("%Y%m%d_%H%M%S",time.gmtime())
-                file_name = 'D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\screenshot\\'+time_string+'.png'
+                # file_name = 'D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\screenshot\\'+time_string+'.png'
+                file_name = 'scrcpy_ui\\simulator\\screenshot\\'+time_string+'.png'
                 logger.info('screenshot name:%s',file_name)
                 cv2.imwrite(file_name,frame)
                 self.take_screenshot_request=False
@@ -233,6 +234,7 @@ class AutoBattle():
         self.current_frame = None
         self.main_window = main_window
         self.meet_enemy = False
+        self.thread_sleep = False
 
     def tap(self,x,y,touch_id=-2):
         """
@@ -392,7 +394,7 @@ class AutoBattle():
                     logger.info('detect enemy!!! attack')
                     self.meet_enemy = True
                     try:
-                        self.tap(equip_1[0] , equip_1[1],equip_1[2])                        
+                        # self.tap(equip_1[0] , equip_1[1],equip_1[2])                        
 
                         for i in range(5):
                                 self.tap(skill_1[0] , skill_1[1],skill_1[2])
@@ -440,8 +442,8 @@ def main():
     m = MainWindow(args.max_width, args.device, args.encoder_name,queue.LifoQueue())    
     m.show()
 
-    battle = AutoBattle(
-        parent_path='D:\\Projects\\Python\\my-py-scrcpy-client\\scrcpy_ui\\simulator\\',        
+    battle = AutoBattle(        
+        parent_path='scrcpy_ui\\simulator\\',
         main_window = m,
     )
     battle.run_auto_earn_script()
